@@ -32,6 +32,10 @@ Gem::Specification.new do |s|
   s.add_dependency "railties", ">= 6.0.0"
 
   s.add_development_dependency "bundler"
+  # Not a runtime dependency — but this gem and F(x) are mixed into the same
+  # object, so "do we collide with F(x)" is a question only answerable with F(x)
+  # present. See spec/pg_cron/fx_coexistence_spec.rb, which exists because we did.
+  s.add_development_dependency "fx"
   s.add_development_dependency "pg"
   s.add_development_dependency "rake", "~> 13.0"
   s.add_development_dependency "rspec-rails"
