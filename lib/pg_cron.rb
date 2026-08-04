@@ -25,9 +25,20 @@ module PgCron
     ActiveRecord::SchemaDumper.prepend PgCron::SchemaDumper
   end
 
+  # The adapter cron statements run through.
+  #
+  # Was a SECOND connection, opened via ActiveRecord::Base.postgresql_connection
+  # against a database named `postgres`, and reconnected by hand. Two problems:
+  # postgresql_connection was removed in Rails 8, and the separate database was
+  # wrong for this setup anyway — cron.job lives in whatever cron.database_name
+  # points at, which is the application's own database, so the application's own
+  # connection is the one that can see it.
+  #
+  # It also has to be that connection for a second reason: pg_cron puts
+  # row-level security on cron.job filtering by username, so jobs created on a
+  # different connection as a different role are invisible to the app and to the
+  # schema dumper.
   def self.connection
-    connection = configuration.connection
-    connection.reconnect! unless connection.active?
-    connection
+    configuration.adapter
   end
 end

@@ -2,36 +2,24 @@
 
 module PgCron
   class Configuration
-    DEFAULT_PG_DATABASE_NAME = "postgres"
     # Kept for anything still referencing it. PgCron::Definition owns the real
-    # path; this is deliberately a literal rather than interpolating
-    # Definition::DIRECTORY, so Configuration does not depend on load order —
-    # it referenced the constant in its class body and raised NameError at boot
-    # whenever Definition happened to be required later.
+    # path; a literal rather than an interpolation of Definition::DIRECTORY so
+    # this does not depend on require order.
     JOBS_DIRECTORY = "db/cron"
 
-    # The connection configuration to use when executing pg_cron statements.
-    # Defaults to the current connection host and user with default PSQL database.
-    attr_writer :connection_config
-    attr_reader :connection
+    # The adapter used to run cron statements. Defaults to the Postgres adapter
+    # over the application's own connection.
+    attr_reader :adapter
 
-    def initialize
-      set_connection
+    def initialize(adapter: PgCron::Adapters::Postgres.new)
+      @adapter = adapter
     end
 
-    def set_connection
-      @connection = PgCron::Adapters::Postgres::Connection.new(
-        ActiveRecord::Base.postgresql_connection(@connection_config || default_pg_cron_connection)
-      )
-    end
+    attr_writer :adapter
 
-    private
-
-    def default_pg_cron_connection
-      default_pg_cron_connection = ActiveRecord::Base.connection_db_config.configuration_hash.deep_dup
-      default_pg_cron_connection[:database] = DEFAULT_PG_DATABASE_NAME
-      
-      default_pg_cron_connection
+    # Retained so `PgCronRails.connection`-era callers keep working.
+    def connection
+      adapter
     end
   end
 
@@ -41,7 +29,9 @@ module PgCron
 
   def self.configure
     yield configuration
+  end
 
-    @configuration.set_connection
+  def self.database
+    configuration.adapter
   end
 end
