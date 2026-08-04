@@ -9,8 +9,17 @@ module PgCron
   # database built with db:schema:load comes up with every table and none of the
   # schedules — silently, and in an environment where nobody is watching cron.
   #
-  # Dumped AFTER the extensions block, because create_cron_job calls
-  # cron.schedule() and that function only exists once pg_cron is installed.
+  # HOOKS #tables, NOT #extensions, which is what F(x) does and for a reason
+  # that is easy to get wrong. ActiveRecord::SchemaDumper#extensions is private
+  # AND redefined by the PostgreSQL-specific dumper, so a module prepended to
+  # ActiveRecord::SchemaDumper never intercepts it — the subclass's own
+  # definition wins and the override is simply never called. The symptom is a
+  # schema dump that succeeds and contains no cron section at all.
+  #
+  # #tables is the documented seam, and running after super means the cron block
+  # lands after the tables and after F(x)'s functions — which matters, because a
+  # create_cron_job line calls cron.schedule() with a command that generally
+  # references those functions.
   #
   # Goes through PgCron.database — the adapter — like everything else. It used
   # to call PgCron.connection.extension_enabled? / .cron_jobs, which were
@@ -19,7 +28,7 @@ module PgCron
   # while looking like it had worked. The adapter's #jobs already returns [] when
   # pg_cron is absent, so there is no separate guard to get wrong.
   module SchemaDumper
-    def extensions(stream)
+    def tables(stream)
       super
       cron_jobs(stream)
     end
