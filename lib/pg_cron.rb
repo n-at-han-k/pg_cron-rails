@@ -1,9 +1,11 @@
 # frozen_string_literal: true
 
-require "pg_cron/adapters/postgres"
-require "pg_cron/configuration"
+# Definition first: Configuration reads Definition::DIRECTORY in its class body,
+# so requiring it later raises NameError at boot.
 require "pg_cron/definition"
 require "pg_cron/job"
+require "pg_cron/adapters/postgres"
+require "pg_cron/configuration"
 require "pg_cron/schema_dumper"
 require "pg_cron/statements"
 require "pg_cron/command_recorder"
