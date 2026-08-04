@@ -3,7 +3,9 @@
 module PgCronRails
   class Configuration
     DEFAULT_PG_DATABASE_NAME = "postgres"
-    JOBS_DIRECTORY = "db/pg_cron_jobs"
+    # Kept for anything still referencing it; definitions are resolved by
+    # PgCronRails::Definition, which owns the db/cron path.
+    JOBS_DIRECTORY = "db/#{PgCronRails::Definition::DIRECTORY}"
 
     # The connection configuration to use when executing pg_cron statements.
     # Defaults to the current connection host and user with default PSQL database.
