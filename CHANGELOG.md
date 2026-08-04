@@ -2,7 +2,7 @@
 
 ## [1.0.1] - 2021-10-26
 
-- Fix PgCronRails manual configuration
+- Fix PgCron manual configuration
 
 
 ## [1.0.0] - 2021-10-19

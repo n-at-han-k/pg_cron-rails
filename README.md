@@ -6,11 +6,11 @@
 
 By default, no configuration is needed to use this gem. 
 
-PgCronRails schedules your pg_cron jobs in the default PSQL database using your current database connection user.
+PgCron schedules your pg_cron jobs in the default PSQL database using your current database connection user.
 
-You can also customize PgCronRails database connection configuration by creating an initializer:
+You can also customize PgCron database connection configuration by creating an initializer:
 ```ruby
-PgCronRails.configure do |config|
+PgCron.configure do |config|
     config.connection_config =  {
         username: username
         password: password
@@ -46,7 +46,7 @@ rails db:migrate
 
 ## Methods
 
-The methods added to `ActiveRecord::Migration` are defined in [PgCronRails::Statements](https://github.com/agendrix/pg-cron-rails/blob/main/lib/pg_cron_rails/statements.rb)
+The methods added to `ActiveRecord::Migration` are defined in [PgCron::Statements](https://github.com/agendrix/pg-cron-rails/blob/main/lib/pg_cron/statements.rb)
 
 
 ## License
