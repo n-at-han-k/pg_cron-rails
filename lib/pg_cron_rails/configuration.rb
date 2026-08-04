@@ -17,7 +17,7 @@ module PgCronRails
     end
 
     def set_connection
-      @connection = PgCronRails::Adapters::PostgresqlAdapter.new(
+      @connection = PgCronRails::Adapters::Postgres::Connection.new(
         ActiveRecord::Base.postgresql_connection(@connection_config || default_pg_cron_connection)
       )
     end

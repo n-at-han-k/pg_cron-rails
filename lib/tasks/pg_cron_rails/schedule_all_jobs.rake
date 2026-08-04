@@ -1,10 +1,10 @@
 # frozen_string_literal: true
 
 namespace :pg_cron_rails do
-  desc "Schedule all jobs"
+  desc "Schedule every job in db/cron at its highest version"
   task schedule_all_jobs: :environment do |_t, _args|
-    pg_cron_jobs.each do |job_name|
-      ActiveRecord::Base.connection.schedule_pg_cron_job(job_name)
+    latest_job_versions.each do |name, version|
+      ActiveRecord::Base.connection.create_cron_job(name, version: version)
     end
     puts "All the pg_cron jobs were successfully scheduled"
   rescue StandardError => e
@@ -14,10 +14,20 @@ namespace :pg_cron_rails do
 
   private
 
-  def pg_cron_jobs
-    Dir["#{PgCronRails::Configuration::JOBS_DIRECTORY}/*.yml"].map do |file|
-      file = file.chomp(".yml")
-      file.split("/").last
+  # Definitions are db/cron/<name>_v<NN>.sql, so a job with several versions has
+  # several files and only the HIGHEST is current. Globbing filenames the way
+  # this task did for YAML would schedule every historical version in turn and
+  # leave whichever sorted last in place.
+  def latest_job_versions
+    directory = Rails.root.join("db", PgCronRails::Definition::DIRECTORY)
+
+    Dir.glob("*_v*.sql", base: directory).each_with_object({}) do |file, latest|
+      match = file.match(/\A(?<name>.+)_v(?<version>\d+)\.sql\z/)
+      next unless match
+
+      name = match[:name]
+      version = match[:version].to_i
+      latest[name] = version if version > latest.fetch(name, 0)
     end
   end
 end

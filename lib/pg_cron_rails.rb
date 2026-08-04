@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "pg_cron_rails/adapters/postgresql_adapter"
+require "pg_cron_rails/adapters/postgres"
 require "pg_cron_rails/configuration"
 require "pg_cron_rails/definition"
 require "pg_cron_rails/job"
