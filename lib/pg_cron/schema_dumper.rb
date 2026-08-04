@@ -1,44 +1,35 @@
 # frozen_string_literal: true
 
 module PgCron
-  # Writes scheduled jobs into db/schema.rb, the way F(x) writes functions and
-  # triggers.
+  # Writes scheduled jobs into db/schema.rb.
   #
-  # Without this the schema is WRONG rather than merely incomplete. The Rails
-  # dumper knows about tables, indexes and extensions and nothing else, so a
-  # database built with db:schema:load comes up with every table and none of the
-  # schedules — silently, and in an environment where nobody is watching cron.
+  # F(x)'s SchemaDumper with `functions`/`triggers` replaced by `jobs`. Hooking
+  # #tables rather than #extensions is F(x)'s choice and is load-bearing:
+  # #extensions is private AND redefined by the PostgreSQL-specific dumper, so a
+  # module prepended to ActiveRecord::SchemaDumper never intercepts it and the
+  # dump silently comes out with no cron section.
   #
-  # HOOKS #tables, NOT #extensions, which is what F(x) does and for a reason
-  # that is easy to get wrong. ActiveRecord::SchemaDumper#extensions is private
-  # AND redefined by the PostgreSQL-specific dumper, so a module prepended to
-  # ActiveRecord::SchemaDumper never intercepts it — the subclass's own
-  # definition wins and the override is simply never called. The symptom is a
-  # schema dump that succeeds and contains no cron section at all.
+  # Emitted after super, so the cron block follows the tables and F(x)'s
+  # functions — which matters, because a create_cron_job line schedules a command
+  # that generally calls them.
   #
-  # #tables is the documented seam, and running after super means the cron block
-  # lands after the tables and after F(x)'s functions — which matters, because a
-  # create_cron_job line calls cron.schedule() with a command that generally
-  # references those functions.
-  #
-  # Goes through PgCron.database — the adapter — like everything else. It used
-  # to call PgCron.connection.extension_enabled? / .cron_jobs, which were
-  # methods on the raw connection this gem opened before; against the adapter
-  # they are NoMethodError, and a schema dump simply produced no cron section
-  # while looking like it had worked. The adapter's #jobs already returns [] when
-  # pg_cron is absent, so there is no separate guard to get wrong.
+  # @api private
   module SchemaDumper
     def tables(stream)
       super
-      cron_jobs(stream)
+
+      jobs(stream)
     end
 
-    def cron_jobs(stream)
-      jobs = PgCron.database.jobs
-      return if jobs.none?
+    private
 
-      stream.puts
-      jobs.sort.each { |job| stream.puts(job.to_schema) }
+    def jobs(stream)
+      dumpable_jobs_in_database = PgCron.database.jobs
+
+      dumpable_jobs_in_database.each do |job|
+        stream.puts
+        stream.puts(job.to_schema)
+      end
     end
   end
 end
