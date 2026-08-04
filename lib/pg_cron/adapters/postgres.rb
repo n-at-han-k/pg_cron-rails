@@ -24,6 +24,16 @@ module PgCron
         @connectable = connectable
       end
 
+      # Whether pg_cron is installed in this database.
+      #
+      # Every statement checks this first, so a migration that schedules a job
+      # still runs against a database without the extension — a test database,
+      # or an environment where cron is not wanted — instead of every such
+      # migration needing its own guard.
+      def pg_cron_enabled?
+        connection.pg_cron_enabled?
+      end
+
       # Every scheduled job in the database.
       #
       # Used by {PgCron::SchemaDumper} to populate `schema.rb`. Returns

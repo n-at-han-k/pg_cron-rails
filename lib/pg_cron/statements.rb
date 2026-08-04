@@ -38,9 +38,9 @@ module PgCron
       validate_version_and_sql_definition_exclusive!(version, sql_definition)
       version ||= 1
 
-      with_pg_cron_connection do |connection|
-        connection.create_cron_job(resolve_sql_definition(sql_definition, name, version))
-      end
+      return unless PgCron.database.pg_cron_enabled?
+
+      PgCron.database.create_job(resolve_sql_definition(sql_definition, name, version))
     end
 
     # Drop a cron job by name.
@@ -51,9 +51,9 @@ module PgCron
     # @return [void]
     #
     def drop_cron_job(name, revert_to_version: nil)
-      with_pg_cron_connection do |connection|
-        connection.drop_cron_job(name)
-      end
+      return unless PgCron.database.pg_cron_enabled?
+
+      PgCron.database.drop_job(name)
     end
 
     # Update a cron job.
@@ -74,9 +74,9 @@ module PgCron
       validate_version_or_sql_definition_present!(version, sql_definition)
       validate_version_and_sql_definition_exclusive!(version, sql_definition)
 
-      with_pg_cron_connection do |connection|
-        connection.update_cron_job(name, resolve_sql_definition(sql_definition, name, version))
-      end
+      return unless PgCron.database.pg_cron_enabled?
+
+      PgCron.database.update_job(name, resolve_sql_definition(sql_definition, name, version))
     end
 
     private
@@ -99,14 +99,6 @@ module PgCron
       return sql_definition.strip_heredoc if sql_definition
 
       PgCron::Definition.job(name: name, version: version).to_sql
-    end
-
-    # A no-op when pg_cron is not installed, so a migration that schedules a job
-    # still runs against a database without the extension — a test database, or
-    # an environment where cron is not wanted. The alternative is every such
-    # migration carrying its own guard.
-    def with_pg_cron_connection
-      yield PgCron.connection if PgCron.connection.extension_enabled?("pg_cron")
     end
   end
 end
