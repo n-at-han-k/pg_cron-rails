@@ -11,6 +11,13 @@ module PgCron
   #
   # Dumped AFTER the extensions block, because create_cron_job calls
   # cron.schedule() and that function only exists once pg_cron is installed.
+  #
+  # Goes through PgCron.database — the adapter — like everything else. It used
+  # to call PgCron.connection.extension_enabled? / .cron_jobs, which were
+  # methods on the raw connection this gem opened before; against the adapter
+  # they are NoMethodError, and a schema dump simply produced no cron section
+  # while looking like it had worked. The adapter's #jobs already returns [] when
+  # pg_cron is absent, so there is no separate guard to get wrong.
   module SchemaDumper
     def extensions(stream)
       super
@@ -18,9 +25,7 @@ module PgCron
     end
 
     def cron_jobs(stream)
-      return unless PgCron.connection.extension_enabled?("pg_cron")
-
-      jobs = PgCron.connection.cron_jobs
+      jobs = PgCron.database.jobs
       return if jobs.none?
 
       stream.puts
