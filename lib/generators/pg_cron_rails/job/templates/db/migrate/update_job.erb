@@ -1,0 +1,5 @@
+class <%= migration_class_name %> < ActiveRecord::Migration[<%= ActiveRecord::Migration.current_version %>]
+  def change
+    update_cron_job <%= formatted_name %>, version: <%= version %>, revert_to_version: <%= previous_version %>
+  end
+end

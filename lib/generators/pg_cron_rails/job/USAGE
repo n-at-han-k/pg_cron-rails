@@ -1,0 +1,19 @@
+Description:
+    Create a new pg_cron job for your application. This will create a new job
+    definition file and the accompanying migration.
+
+    Run it again for an existing job to start the next version from the current
+    definition; the migration it writes is an update with revert_to_version set.
+
+    When --no-migration is passed, skips generating a migration.
+
+Examples:
+    rails generate pg_cron_rails:job drain_juicefs_events
+
+      create: db/cron/drain_juicefs_events_v01.sql
+      create: db/migrate/[TIMESTAMP]_create_cron_job_drain_juicefs_events.rb
+
+    rails generate pg_cron_rails:job drain_juicefs_events   # a second time
+
+      create: db/cron/drain_juicefs_events_v02.sql
+      create: db/migrate/[TIMESTAMP]_update_cron_job_drain_juicefs_events_to_version_2.rb
