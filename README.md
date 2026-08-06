@@ -25,6 +25,74 @@ generators behave the same way, and both dump into `db/schema.rb`.
 
 [fx]: https://github.com/teoljungberg/fx
 
+## Requirements
+
+pg_cron is a Postgres extension running a background worker, so the server has
+to be set up for it before this gem can do anything. Every statement here checks
+`pg_cron_enabled?` first and does nothing when the extension is absent, so a
+half-configured server looks like a migration that ran fine and scheduled
+nothing. It's worth getting this right once.
+
+**1. Preload the extension.** pg_cron refuses to load any other way. In
+`postgresql.conf`:
+
+```conf
+shared_preload_libraries = 'pg_cron'
+```
+
+**2. Point pg_cron at your application's database.** This is the step that
+catches people. `cron.database_name` defaults to `postgres`, and the extension
+may only be installed in one database per cluster — that database is where
+`cron.job` lives. This gem runs over your application's own `ActiveRecord`
+connection, so that database has to be your application's:
+
+```conf
+cron.database_name = 'my_app_production'
+```
+
+Both settings require a server restart to take effect.
+
+**3. Create the extension** in that same database, as a superuser — from `psql`
+or from a Rails migration:
+
+```ruby
+enable_extension "pg_cron"
+```
+
+**4. Grant your application's role access to the schema**, if it isn't the role
+that created the extension:
+
+```sql
+GRANT USAGE ON SCHEMA cron TO my_app;
+```
+
+Note that `cron.job` has row-level security keyed on `username`, so a role only
+ever sees the jobs it scheduled. Schedule and dump as the same role your
+application connects with, or the schema dumper will come up empty.
+
+**Schedules are GMT** unless you set `cron.timezone`, which is easy to forget
+when writing a nightly job:
+
+```conf
+cron.timezone = 'America/Toronto'
+```
+
+The remaining settings — `cron.max_running_jobs`, `cron.use_background_workers`,
+`cron.log_run`, `cron.log_statement` and friends — are documented in
+[pg_cron's own README][pg_cron-settings] and this gem doesn't touch them. You
+can check what a running server actually has with:
+
+```sql
+SELECT * FROM pg_settings WHERE name LIKE 'cron.%';
+```
+
+If your application's database can't be the one pg_cron lives in, pg_cron offers
+`cron.schedule_in_database()` for scheduling into another database from the
+cron one. This gem doesn't wrap it: its whole model is that the schedules are
+part of the schema of the database it's connected to.
+
+[pg_cron-settings]: https://github.com/citusdata/pg_cron#extension-settings
+
 ## Great, how do I schedule a job?
 
 You've got a `DELETE` you'd like Postgres to run every night. You can create the
@@ -121,11 +189,12 @@ environment where cron isn't wanted, without needing its own guard.
 
 ## Configuration
 
-No configuration is needed. Statements run over the application's own
-`ActiveRecord::Base` connection, which is the connection that can see them:
-`cron.job` lives in whatever `cron.database_name` points at — your application's
-database — and pg_cron puts row-level security on that table filtering by
-username, so jobs created as a different role would be invisible to both the
+The gem needs no configuration of its own — the setup that matters is on the
+server, under [Requirements](#requirements). Statements run over the
+application's own `ActiveRecord::Base` connection, which is the connection that
+can see them: `cron.job` lives in the database `cron.database_name` names, and
+pg_cron puts row-level security on that table filtering by username, so jobs
+created on another connection as another role would be invisible to both the
 application and the schema dumper.
 
 To substitute your own adapter:
@@ -152,9 +221,11 @@ environment in line with the definitions without replaying migrations.
 ```
 
 Install and enable, or disable and remove, the pg_cron extension in a local
-development database. These are Homebrew- and macOS-only, refuse to run outside
-`RAILS_ENV=development`, and edit `shared_preload_libraries` in your
-`postgresql.conf` before restarting the service.
+development database. This is a convenience path for one setup only: it is
+Homebrew- and macOS-only, refuses to run outside `RAILS_ENV=development`, and
+handles just the `shared_preload_libraries` and `CREATE EXTENSION` steps —
+`cron.database_name` and `cron.timezone` are still yours to set. Anywhere else,
+follow [Requirements](#requirements).
 
 ## Version Support
 
